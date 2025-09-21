@@ -3,7 +3,7 @@ using UnityEngine;
 public class Enemy : MonoBehaviour
 {
     public string enemyID;
-    public int health = 100;
+    public int health = 99;
 
     public EnemyData GetData()
     {
