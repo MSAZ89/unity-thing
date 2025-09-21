@@ -1,24 +1,35 @@
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody))]
 public class PlayerMovement : MonoBehaviour
 {
+    [Header("Movement")]
     [SerializeField] private float movementSpeed = 5f;
-    [SerializeField] private float jumpForce = 50f;
-    [SerializeField] private Transform cameraTransform;
-    [SerializeField] private CapsuleCollider capsule; // child collider
-    [SerializeField] private LayerMask groundMask;    
+    [SerializeField] private float jumpForce = 7f;
+    [SerializeField] private float rotationSmoothTime = 0.1f;
+    
+    [Header("References")]
+    [SerializeField] private CapsuleCollider capsule;
+    [SerializeField] private LayerMask groundMask;
+    [SerializeField] private CameraFollow cameraFollow;
 
     private Rigidbody rb;
     private bool jumpPressed;
+    private float rotationVelocity;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        
+        // Auto-find camera if not assigned
+        if (cameraFollow == null)
+        {
+            cameraFollow = FindObjectOfType<CameraFollow>();
+        }
     }
 
     void Update()
     {
-        // capture jump input
         if (Input.GetKeyDown(KeyCode.Space))
             jumpPressed = true;
     }
@@ -26,39 +37,47 @@ public class PlayerMovement : MonoBehaviour
     void FixedUpdate()
     {
         Move();
+        RotateToCamera();
 
         if (jumpPressed && IsGrounded())
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-            jumpPressed = false; // consume the jump
+            jumpPressed = false;
         }
     }
 
     void Move()
     {
-        float horizontal = Input.GetAxisRaw("Horizontal");
-        float vertical = Input.GetAxisRaw("Vertical");
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
 
-        // Input vector in local space
-        Vector3 inputDir = new Vector3(horizontal, 0f, vertical).normalized;
+        Vector3 inputDir = new Vector3(h, 0, v).normalized;
 
-        // Convert to world space using player yaw only
-        Vector3 moveDir = transform.TransformDirection(inputDir); // transform = player body
+        if (inputDir.magnitude >= 0.1f)
+        {
+            // Move relative to camera direction (only Y rotation)
+            float cameraYaw = cameraFollow.Yaw;
+            Vector3 moveDir = Quaternion.Euler(0, cameraYaw, 0) * inputDir;
 
-        // Sprint
-        if (Input.GetKey(KeyCode.LeftShift))
-            moveDir *= 2f;
+            Vector3 targetVel = moveDir * movementSpeed;
+            Vector3 velocity = rb.velocity;
+            velocity.x = targetVel.x;
+            velocity.z = targetVel.z;
+            rb.velocity = velocity;
+        }
+    }
 
-        // Apply horizontal velocity change
-        Vector3 desiredVelocity = moveDir * movementSpeed;
-        Vector3 velocityChange = desiredVelocity - new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-        rb.AddForce(velocityChange, ForceMode.VelocityChange);
+    void RotateToCamera()
+    {
+        // Smoothly rotate player to face camera direction
+        float targetAngle = cameraFollow.Yaw;
+        float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref rotationVelocity, rotationSmoothTime);
+        transform.rotation = Quaternion.Euler(0, angle, 0);
     }
 
     bool IsGrounded()
     {
-        Vector3 spherePos = capsule.bounds.center - new Vector3(0, capsule.bounds.extents.y + 0.01f, 0);
-        float radius = 0.25f;
-        return Physics.CheckSphere(spherePos, radius, groundMask);
+        Vector3 spherePos = capsule.bounds.center - Vector3.up * (capsule.bounds.extents.y + 0.01f);
+        return Physics.CheckSphere(spherePos, 0.25f, groundMask);
     }
 }
