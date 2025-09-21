@@ -3,7 +3,7 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     [SerializeField] private float movementSpeed = 5f;
-    [SerializeField] private float jumpForce = 7f;
+    [SerializeField] private float jumpForce = 50f;
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private CapsuleCollider capsule; // child collider
     [SerializeField] private LayerMask groundMask;    
