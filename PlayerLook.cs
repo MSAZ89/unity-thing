@@ -7,11 +7,19 @@ public class PlayerLook : MonoBehaviour
     [SerializeField] private Transform cameraPivot;     // Empty pivot at player center
     [SerializeField]private float maxLookAngle = 30f;
     [SerializeField] private float minLookAngle = 0f;
+
+    private Quaternion targetBodyRotation;
+    private Quaternion targetCameraRotation;
+
     private float xRotation = 0f;
+    public float Pitch => xRotation; // read-only property
+
     void Start()
     {
         Cursor.lockState = CursorLockMode.Confined;
         Cursor.visible = false;
+        targetBodyRotation = playerBody.rotation;
+        targetCameraRotation = cameraPivot.localRotation;
 
         // Initialize xRotation to match pivot's current local X rotation
         xRotation = cameraPivot.localEulerAngles.x;
@@ -25,12 +33,15 @@ public class PlayerLook : MonoBehaviour
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
 
-        // yaw (left/right)
-        playerBody.Rotate(Vector3.up * mouseX);
+        // update yaw
+        targetBodyRotation *= Quaternion.Euler(0f, mouseX, 0f);
 
-        // pitch (up/down)
+        // update pitch
         xRotation -= mouseY;
         xRotation = Mathf.Clamp(xRotation, minLookAngle, maxLookAngle);
-        cameraPivot.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        targetCameraRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        float smoothingFactor = 10f;
+        playerBody.rotation = Quaternion.Slerp(playerBody.rotation, targetBodyRotation, smoothingFactor * Time.deltaTime);
+        cameraPivot.localRotation = Quaternion.Slerp(cameraPivot.localRotation, targetCameraRotation, smoothingFactor * Time.deltaTime);
     }
 }
